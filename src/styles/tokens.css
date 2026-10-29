@@ -1,0 +1,84 @@
+/*
+ * Design tokens (see design handoff README).
+ * Light is the base; dark applies when the OS prefers it and the visitor has
+ * not picked light, or when the toggle sets data-theme="dark".
+ */
+:root {
+  color-scheme: light;
+
+  --bg: #EEF1F4;
+  --surface: #DCE3EA;
+  --hover-row: #E4E9EE;
+  --ink: #0F1620;
+  --text-2: #38434F;
+  --muted: #4A5664;
+  --line: #C7CFD8;
+  --input-border: #B9C3CE;
+  --input-bg: #FFFFFF;
+  --night: #2A3542;
+  --day: #FFFFFF;
+  --rosa-text: #D1006B;
+  --rosa-fill: #E4007C;
+  --on-rosa: #FFFFFF;
+  --danger: #B0005A;
+  --grid-line: rgba(15, 22, 32, .06);
+  /* Panel only */
+  --nav-active: #DCE3EA;
+  --panel-hover: #E4E9EE;
+  --line-soft: #DCE2E8;
+  --track: #D3DAE1;
+
+  --font-display: 'Big Shoulders Display', 'Arial Narrow', sans-serif;
+  --font-body: 'Instrument Sans', system-ui, sans-serif;
+  --font-mono: 'IBM Plex Mono', ui-monospace, monospace;
+
+  --page-pad: clamp(20px, 5vw, 64px);
+  --page-max: 1440px;
+  --section-gap: clamp(96px, 12vw, 160px);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --bg: #0E141B;
+    --surface: #16202A;
+    --hover-row: #121A23;
+    --ink: #E8EDF2;
+    --text-2: #B7C2CE;
+    --muted: #9AA7B5;
+    --line: #26313D;
+    --input-border: #2E3A47;
+    --input-bg: #16202A;
+    --night: #1E2935;
+    --day: #CFE0F0;
+    --rosa-text: #F2388F;
+    --danger: #F2388F;
+    --grid-line: rgba(232, 237, 242, .05);
+    --nav-active: #1A2430;
+    --panel-hover: #141C25;
+    --line-soft: #1C2631;
+    --track: #1E2935;
+  }
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #0E141B;
+  --surface: #16202A;
+  --hover-row: #121A23;
+  --ink: #E8EDF2;
+  --text-2: #B7C2CE;
+  --muted: #9AA7B5;
+  --line: #26313D;
+  --input-border: #2E3A47;
+  --input-bg: #16202A;
+  --night: #1E2935;
+  --day: #CFE0F0;
+  --rosa-text: #F2388F;
+  --danger: #F2388F;
+  --grid-line: rgba(232, 237, 242, .05);
+  --nav-active: #1A2430;
+  --panel-hover: #141C25;
+  --line-soft: #1C2631;
+  --track: #1E2935;
+}

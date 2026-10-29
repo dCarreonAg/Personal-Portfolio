@@ -1,0 +1,75 @@
+---
+/*
+ * Cover for projects without a screenshot: grid background, mono top row,
+ * one rosa shape and the project name bleeding off the bottom edge.
+ * Decorative only (the name and meta are repeated in text nearby).
+ */
+interface Props {
+  name: string;
+  tagline: string;
+  year: string;
+  shape?: 'pin' | 'circle';
+  /** 'feature' is the home featured block; 'case' is the case study hero. */
+  size?: 'feature' | 'case';
+}
+
+const { name, tagline, year, shape = 'circle', size = 'case' } = Astro.props;
+---
+
+<div class:list={['cover', size]} aria-hidden="true">
+  <div class="top mono-meta"><span>{tagline}</span><span>{year}</span></div>
+  <div class:list={['shape', shape]}></div>
+  <div class="name">{name}</div>
+</div>
+
+<style>
+  .cover {
+    position: relative;
+    aspect-ratio: 16 / 9;
+    overflow: hidden;
+    background-color: var(--surface);
+    background-image:
+      linear-gradient(var(--grid-line) 1px, transparent 1px),
+      linear-gradient(90deg, var(--grid-line) 1px, transparent 1px);
+    background-size: 48px 48px;
+  }
+  .top {
+    position: absolute;
+    top: 20px;
+    left: 24px;
+    right: 24px;
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+  }
+  .shape {
+    position: absolute;
+    width: clamp(48px, 8vw, 104px);
+    aspect-ratio: 1;
+    background: var(--rosa-fill);
+  }
+  .pin {
+    top: 46%;
+    left: 52%;
+    border-radius: 50% 50% 50% 0;
+    transform: rotate(-45deg);
+  }
+  .circle {
+    top: 38%;
+    left: 58%;
+    border-radius: 50%;
+  }
+  .name {
+    position: absolute;
+    left: 18px;
+    bottom: -0.14em;
+    font-family: var(--font-display);
+    font-weight: 900;
+    line-height: 1;
+    text-transform: uppercase;
+    white-space: nowrap;
+    color: var(--ink);
+  }
+  .feature .name { font-size: clamp(88px, 15vw, 240px); }
+  .case .name { font-size: clamp(80px, 14vw, 220px); }
+</style>

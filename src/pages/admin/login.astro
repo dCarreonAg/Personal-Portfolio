@@ -1,0 +1,84 @@
+---
+import AdminLayout from '../../layouts/AdminLayout.astro';
+import { text } from '../../lib/admin/forms';
+
+let email = '';
+let error = '';
+
+if (Astro.request.method === 'POST') {
+  const form = await Astro.request.formData();
+  email = text(form, 'email');
+  const password = typeof form.get('password') === 'string' ? (form.get('password') as string) : '';
+
+  if (!/.+@.+\..+/.test(email) || !password) {
+    error = 'Escribe tu correo y contraseña.';
+    Astro.response.status = 400;
+  } else {
+    const supabase = Astro.locals.supabase;
+    const { error: authError } = await supabase.auth.signInWithPassword({ email, password });
+    const { data: isOwner } = authError ? { data: false } : await supabase.rpc('is_owner');
+    if (authError || isOwner !== true) {
+      if (!authError) await supabase.auth.signOut();
+      // Same message for every failure, so it doesn't reveal which accounts exist.
+      error = authError?.status === 429 ? 'Demasiados intentos. Espera unos minutos.' : 'Correo o contraseña incorrectos.';
+      Astro.response.status = authError?.status === 429 ? 429 : 401;
+    } else {
+      return Astro.redirect('/admin', 303);
+    }
+  }
+}
+---
+
+<AdminLayout title="Entrar">
+  <main id="main" class="login">
+    <form method="post" class="card" novalidate>
+      <div class="who"><span class="name">Diego Carreón</span><span class="mono">Panel privado</span></div>
+      <h1>Entrar</h1>
+      <label class="field">
+        Correo
+        <input class="input" type="email" name="email" autocomplete="email" required value={email}
+          aria-invalid={error ? 'true' : undefined} aria-describedby={error ? 'login-error' : undefined} />
+      </label>
+      <label class="field">
+        Contraseña
+        <input class="input" type="password" name="password" autocomplete="current-password" required
+          aria-invalid={error ? 'true' : undefined} aria-describedby={error ? 'login-error' : undefined} />
+      </label>
+      {error && <p class="alert" role="alert" id="login-error">{error}</p>}
+      <button type="submit" class="btn btn-primary btn-lg">Entrar</button>
+    </form>
+  </main>
+</AdminLayout>
+
+<style>
+  .login {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    padding: clamp(24px, 7vw, 112px);
+  }
+  .card {
+    width: 100%;
+    max-width: 400px;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+  }
+  .who {
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+  }
+  .name { font-weight: 600; }
+  .who .mono { font-size: 12px; }
+  h1 {
+    margin: 12px 0 8px;
+    font-family: var(--font-display);
+    font-weight: 900;
+    font-size: 72px;
+    line-height: .85;
+    text-transform: uppercase;
+  }
+  .input { padding: 12px 14px; }
+</style>

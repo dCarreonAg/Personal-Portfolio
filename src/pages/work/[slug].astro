@@ -1,0 +1,222 @@
+---
+import SiteLayout from '../../layouts/SiteLayout.astro';
+import TypographicCover from '../../components/TypographicCover.astro';
+import { getProfile, getPublishedProjects } from '../../lib/content';
+import { caseStudySections } from '../../lib/markdown';
+import { setPublicCache } from '../../lib/cache';
+
+const [{ name: owner }, projects] = await Promise.all([getProfile(), getPublishedProjects()]);
+const i = projects.findIndex((x) => x.slug === Astro.params.slug);
+if (i === -1) return Astro.rewrite('/404');
+
+const p = projects[i];
+const next = projects.length > 1 ? projects[(i + 1) % projects.length] : null;
+setPublicCache(Astro.response.headers);
+const sections = caseStudySections(p.caseStudyMd);
+const tools = p.tools.join(', ');
+---
+
+<SiteLayout title={`${p.name} · ${owner}`} description={p.summary} ownerName={owner}>
+  <main id="case">
+    <a href="/#work" class="back">← All work</a>
+    <h1>{p.name}</h1>
+    <p class="summary">{p.summary}</p>
+
+    <dl class="meta">
+      {p.role && (<div><dt>Role</dt><dd>{p.role}</dd></div>)}
+      {p.year && (<div><dt>Year</dt><dd>{p.year}</dd></div>)}
+      {tools && (<div><dt>Tools</dt><dd>{tools}</dd></div>)}
+      {(p.demoUrl || p.repoUrl) && (
+        <div>
+          <dt>Links</dt>
+          <dd class="links">
+            {p.demoUrl && <a href={p.demoUrl} rel="noopener noreferrer">Live demo <span aria-hidden="true">↗</span></a>}
+            {p.repoUrl && <a href={p.repoUrl} rel="noopener noreferrer">Repo <span aria-hidden="true">↗</span></a>}
+          </dd>
+        </div>
+      )}
+    </dl>
+
+    <div class="hero">
+      {p.imageUrl ? (
+        <img src={p.imageUrl} alt={`Screenshot of ${p.name}`} width="1600" height="900" decoding="async" />
+      ) : (
+        <TypographicCover name={p.name} tagline={tools || p.tagline || ''} year={p.year} shape="circle" size="case" />
+      )}
+    </div>
+
+    {sections.length > 0 && (
+      <div class="sections">
+        {sections.map((s) => (
+          <section>
+            {s.title ? <h2>{s.title}</h2> : <span class="no-title" aria-hidden="true"></span>}
+            <div class="body" set:html={s.html} />
+          </section>
+        ))}
+      </div>
+    )}
+
+    {next && (
+      <a href={`/work/${next.slug}`} class="next">
+        <span class="mono-meta">Next project</span>
+        <span class="next-name">{next.name} <span aria-hidden="true">→</span></span>
+      </a>
+    )}
+  </main>
+</SiteLayout>
+
+<style>
+  .back {
+    display: inline-block;
+    margin-top: 16px;
+    font-size: 15px;
+    font-weight: 500;
+    color: var(--muted);
+    text-decoration: none;
+  }
+  h1 {
+    margin: clamp(32px, 5vw, 56px) 0 0;
+    font-family: var(--font-display);
+    font-weight: 900;
+    font-size: clamp(72px, 14vw, 200px);
+    line-height: .82;
+    text-transform: uppercase;
+    overflow-wrap: anywhere;
+  }
+  .summary {
+    margin: 28px 0 0;
+    max-width: 760px;
+    font-size: clamp(20px, 2.2vw, 26px);
+    line-height: 1.4;
+    text-wrap: pretty;
+  }
+
+  .meta {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 180px), 1fr));
+    gap: 24px;
+    margin: 48px 0 0;
+    padding: 24px 0;
+    border-top: 1px solid var(--line);
+    border-bottom: 1px solid var(--line);
+  }
+  dt {
+    margin-bottom: 6px;
+    font-family: var(--font-mono);
+    font-size: 12px;
+    color: var(--muted);
+  }
+  dd {
+    margin: 0;
+    font-size: 16px;
+    font-weight: 500;
+  }
+  .links {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px 20px;
+  }
+
+  .hero { margin-top: 48px; }
+  .hero img {
+    display: block;
+    width: 100%;
+    height: auto;
+    aspect-ratio: 16 / 9;
+    object-fit: cover;
+  }
+
+  .sections {
+    display: flex;
+    flex-direction: column;
+    margin-top: clamp(64px, 8vw, 112px);
+  }
+  section {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 16px clamp(24px, 5vw, 72px);
+    padding: 32px 0 48px;
+    border-top: 2px solid var(--ink);
+  }
+  h2, .no-title {
+    flex: 1 1 240px;
+    margin: 0;
+    font-family: var(--font-display);
+    font-weight: 900;
+    font-size: clamp(44px, 5vw, 72px);
+    line-height: .85;
+    text-transform: uppercase;
+    overflow-wrap: anywhere;
+  }
+  .body {
+    flex: 2 1 420px;
+    min-width: 0;
+    max-width: 680px;
+    font-size: 18px;
+    line-height: 1.65;
+    color: var(--text-2);
+    text-wrap: pretty;
+  }
+  .body > :global(*) { margin: 0 0 1em; }
+  .body > :global(:last-child) { margin-bottom: 0; }
+  .body :global(h3),
+  .body :global(h4) {
+    margin-top: 1.6em;
+    color: var(--ink);
+    font-size: 18px;
+    font-weight: 600;
+    line-height: 1.3;
+  }
+  .body :global(strong) { color: var(--ink); font-weight: 600; }
+  .body :global(ul),
+  .body :global(ol) { padding-left: 1.25em; }
+  .body :global(li + li) { margin-top: .4em; }
+  .body :global(code) {
+    font-family: var(--font-mono);
+    font-size: .85em;
+    background: var(--surface);
+    padding: .1em .3em;
+  }
+  .body :global(pre) {
+    overflow-x: auto;
+    padding: 16px;
+    background: var(--surface);
+  }
+  .body :global(pre code) { padding: 0; background: none; }
+  .body :global(blockquote) {
+    margin-left: 0;
+    padding-left: 20px;
+    border-left: 2px solid var(--rosa-fill);
+  }
+  .body :global(img) {
+    display: block;
+    max-width: 100%;
+    height: auto;
+  }
+  .body :global(hr) {
+    border: 0;
+    border-top: 1px solid var(--line);
+  }
+
+  .next {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 12px;
+    margin: clamp(48px, 6vw, 80px) 0 64px;
+    padding-top: 24px;
+    border-top: 1px solid var(--line);
+    text-decoration: none;
+  }
+  .next:hover { color: inherit; }
+  .next:hover .next-name { color: var(--rosa-text); }
+  .next-name {
+    font-family: var(--font-display);
+    font-weight: 900;
+    font-size: clamp(44px, 7vw, 96px);
+    line-height: .85;
+    text-transform: uppercase;
+    overflow-wrap: anywhere;
+  }
+</style>

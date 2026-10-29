@@ -1,0 +1,404 @@
+---
+import SiteLayout from '../layouts/SiteLayout.astro';
+import DaylightClocks from '../components/DaylightClocks.astro';
+import TypographicCover from '../components/TypographicCover.astro';
+import {
+  PATH_KIND_LABEL,
+  getPathEntries,
+  getProfile,
+  getPublishedProjects,
+  splitFeatured,
+  toUrl,
+} from '../lib/content';
+import { setPublicCache } from '../lib/cache';
+
+const [profile, projects, path] = await Promise.all([getProfile(), getPublishedProjects(), getPathEntries()]);
+const { featured, others } = splitFeatured(projects);
+setPublicCache(Astro.response.headers);
+
+const [firstName, ...rest] = profile.name.split(' ');
+const lastName = rest.join(' ');
+const year = new Date().getFullYear();
+---
+
+<SiteLayout title={`${profile.name} · ${profile.headline}`} description={profile.bio} ownerName={profile.name}>
+  <main id="top">
+    <header class="hero">
+      <h1>
+        {firstName}<span class="stamp" aria-hidden="true">{profile.availability}</span><br />{lastName}
+      </h1>
+      <p class="visually-hidden">{profile.availability}</p>
+    </header>
+
+    <div class="intro">
+      <div class="about">
+        <p class="headline">{profile.headline}</p>
+        <p class="bio">{profile.bio}</p>
+        <p class="focus">{profile.focus}</p>
+      </div>
+      <DaylightClocks />
+    </div>
+
+    <section class="section" aria-labelledby="now-title">
+      <h2 class="section-title" id="now-title">Right now</h2>
+      <ul class="now-list">
+        {profile.rightNow.map((item) => (
+          <li>
+            <span class="now-title">{item.title}</span>
+            <span class="now-detail">{item.detail}</span>
+          </li>
+        ))}
+      </ul>
+    </section>
+
+    <section id="work" class="section" aria-labelledby="work-title">
+      <h2 class="section-title work-title" id="work-title">Selected work</h2>
+      {featured && (
+        <a href={`/work/${featured.slug}`} class="featured" aria-label={`Read ${featured.name} case study`}>
+          <div class="featured-media">
+            {featured.imageUrl ? (
+              <img src={featured.imageUrl} alt="" width="1600" height="900" loading="lazy" decoding="async" />
+            ) : (
+              <TypographicCover
+                name={featured.name}
+                tagline={featured.tagline ?? featured.tools.join(', ')}
+                year={featured.year}
+                shape="pin"
+                size="feature"
+              />
+            )}
+          </div>
+          <div class="featured-info">
+            <span class="featured-name">{featured.name}</span>
+            <span class="featured-summary">{featured.summary}</span>
+            <span class="featured-meta">
+              {featured.role} · {featured.year}
+              {featured.tools.length > 0 && (<><br />{featured.tools.join(', ')}</>)}
+            </span>
+            <span class="cta">Read case study →</span>
+          </div>
+        </a>
+      )}
+      {others.length > 0 && (
+        <ul class="rows">
+          {others.map((p) => (
+            <li>
+              <a href={`/work/${p.slug}`} class="row">
+                <span class="row-year">{p.year}</span>
+                <span class="row-name">{p.name}</span>
+                <span class="row-summary">{p.summary}</span>
+                <span class="row-end">
+                  {p.award}
+                  <span class="arrow" aria-hidden="true">→</span>
+                </span>
+              </a>
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
+
+    <section id="path" class="section" aria-labelledby="path-title">
+      <h2 class="section-title" id="path-title">Path so far</h2>
+      <ol class="path">
+        {path.map((e) => (
+          <li>
+            <span class="path-years">{e.years}</span>
+            <span class="path-what">
+              <span class="path-title">{e.title}</span>
+              <span class="path-place">{e.place}</span>
+            </span>
+            <span class="mono-meta">{PATH_KIND_LABEL[e.kind]}</span>
+          </li>
+        ))}
+      </ol>
+    </section>
+
+    <section id="contact" class="section contact" aria-labelledby="contact-title">
+      <h2 class="section-title contact-title" id="contact-title">Let's talk</h2>
+      <p class="contact-lead">
+        Looking for a frontend or product engineering internship for Summer 2027. Email is the fastest way to reach me.
+      </p>
+      <a href={`mailto:${profile.email}`} class="email">{profile.email}</a>
+      <div class="socials">
+        <a href={toUrl(profile.github)} rel="me">GitHub <span aria-hidden="true">↗</span></a>
+        <a href={toUrl(profile.linkedin)} rel="me">LinkedIn <span aria-hidden="true">↗</span></a>
+      </div>
+      <footer class="footer mono-meta">
+        <span>© {year} {profile.name}</span>
+        <span>
+          Uppsala <span data-local-time="Europe/Stockholm">--:--</span> · Mexico City{' '}<span data-local-time="America/Mexico_City">--:--</span>
+        </span>
+      </footer>
+    </section>
+  </main>
+</SiteLayout>
+
+<style>
+  /* Hero */
+  .hero { margin-top: clamp(48px, 8vw, 112px); }
+  h1 {
+    margin: 0 0 -0.04em;
+    font-family: var(--font-display);
+    font-weight: 900;
+    font-size: clamp(76px, 17vw, 240px);
+    line-height: .8;
+    text-transform: uppercase;
+  }
+  .stamp {
+    display: inline-block;
+    vertical-align: top;
+    margin: .12em 0 0 clamp(12px, 2.4vw, 36px);
+    transform: rotate(-6deg);
+    background: var(--rosa-fill);
+    color: var(--on-rosa);
+    font-weight: 800;
+    font-size: clamp(13px, 1.6vw, 21px);
+    line-height: 1;
+    letter-spacing: .02em;
+    padding: clamp(8px, 1vw, 12px) clamp(10px, 1.3vw, 18px);
+  }
+
+  /* Intro: bio + clocks */
+  .intro {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 400px), 1fr));
+    gap: clamp(40px, 6vw, 80px);
+    margin-top: clamp(32px, 5vw, 56px);
+    padding-top: 32px;
+    border-top: 1px solid var(--line);
+  }
+  .about {
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+    max-width: 560px;
+  }
+  .about p { margin: 0; }
+  .headline {
+    color: var(--rosa-text);
+    font-size: clamp(20px, 2vw, 24px);
+    font-weight: 600;
+    line-height: 1.25;
+  }
+  .bio {
+    color: var(--text-2);
+    font-size: 17px;
+    line-height: 1.6;
+    text-wrap: pretty;
+  }
+  .focus {
+    font-size: 15px;
+    color: var(--muted);
+  }
+
+  /* Right now */
+  .now-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr));
+    gap: 0 clamp(24px, 4vw, 48px);
+  }
+  .now-list li {
+    border-top: 2px solid var(--ink);
+    padding: 18px 0 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .now-title {
+    font-size: 20px;
+    font-weight: 600;
+  }
+  .now-detail {
+    font-size: 16px;
+    line-height: 1.55;
+    color: var(--text-2);
+  }
+
+  /* Selected work */
+  .work-title { margin-bottom: 40px; }
+  .featured {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 420px), 1fr));
+    gap: clamp(24px, 4vw, 56px);
+    align-items: end;
+    text-decoration: none;
+  }
+  .featured:hover { color: inherit; }
+  .featured-media {
+    grid-column: 1 / -1;
+    min-width: 0;
+  }
+  .featured-media img {
+    display: block;
+    width: 100%;
+    height: auto;
+    aspect-ratio: 16 / 9;
+    object-fit: cover;
+  }
+  .featured-info {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    padding-bottom: 8px;
+    max-width: 520px;
+  }
+  .featured-name {
+    font-family: var(--font-display);
+    font-weight: 800;
+    font-size: 44px;
+    line-height: .9;
+    text-transform: uppercase;
+  }
+  .featured-summary {
+    font-size: 18px;
+    line-height: 1.55;
+    color: var(--text-2);
+  }
+  .featured-meta {
+    font-family: var(--font-mono);
+    font-size: 13px;
+    line-height: 1.7;
+    color: var(--muted);
+  }
+  .cta {
+    font-weight: 600;
+    color: var(--rosa-text);
+  }
+  .featured:hover .cta { text-decoration: underline; text-underline-offset: 4px; }
+
+  .rows {
+    list-style: none;
+    margin: clamp(48px, 6vw, 72px) 0 0;
+    padding: 0;
+    border-top: 1px solid var(--line);
+  }
+  .row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 8px clamp(16px, 3vw, 40px);
+    padding: 28px 0;
+    border-bottom: 1px solid var(--line);
+    text-decoration: none;
+  }
+  .row:hover {
+    color: inherit;
+    background: var(--hover-row);
+  }
+  .row-year {
+    font-family: var(--font-mono);
+    font-size: 13px;
+    color: var(--muted);
+    width: 48px;
+  }
+  .row-name {
+    flex: 1 1 260px;
+    font-family: var(--font-display);
+    font-weight: 800;
+    font-size: clamp(36px, 4.5vw, 56px);
+    line-height: .9;
+    text-transform: uppercase;
+  }
+  .row-summary {
+    flex: 2 1 280px;
+    font-size: 16px;
+    line-height: 1.55;
+    color: var(--text-2);
+  }
+  .row-end {
+    flex: 0 0 auto;
+    margin-left: auto;
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    gap: 14px;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--rosa-text);
+  }
+  .arrow {
+    font-size: 22px;
+    color: var(--ink);
+  }
+
+  /* Path */
+  .path {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    border-top: 2px solid var(--ink);
+  }
+  .path li {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 6px clamp(16px, 3vw, 40px);
+    padding: 22px 0;
+    border-bottom: 1px solid var(--line);
+  }
+  .path-years {
+    flex: 0 0 clamp(120px, 16vw, 200px);
+    font-family: var(--font-display);
+    font-weight: 800;
+    font-size: clamp(28px, 3vw, 36px);
+    line-height: 1;
+  }
+  .path-what {
+    flex: 1 1 280px;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+  .path-title {
+    font-size: 19px;
+    font-weight: 600;
+  }
+  .path-place {
+    font-size: 15px;
+    color: var(--muted);
+  }
+
+  /* Contact */
+  .contact { padding-bottom: 40px; }
+  .contact-title { margin-bottom: 24px; }
+  .contact-lead {
+    margin: 0 0 20px;
+    max-width: 520px;
+    font-size: 18px;
+    line-height: 1.55;
+    color: var(--text-2);
+  }
+  .email {
+    display: inline-block;
+    max-width: 100%;
+    font-family: var(--font-display);
+    font-weight: 800;
+    font-size: clamp(34px, 7.4vw, 112px);
+    line-height: 1;
+    color: var(--rosa-text);
+    overflow-wrap: anywhere;
+    text-decoration-thickness: 3px;
+    text-underline-offset: 10px;
+  }
+  .socials {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px 32px;
+    margin-top: 36px;
+    font-size: 17px;
+    font-weight: 500;
+  }
+  .footer {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    gap: 12px;
+    margin-top: clamp(80px, 10vw, 128px);
+    padding-top: 20px;
+    border-top: 1px solid var(--line);
+  }
+</style>

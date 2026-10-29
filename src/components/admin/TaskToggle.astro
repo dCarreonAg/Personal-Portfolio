@@ -1,0 +1,53 @@
+---
+/*
+ * One task as a toggle button inside its own form: works without JavaScript
+ * and, with it, saves in the background (data-enhance).
+ */
+import type { PlanTaskRow } from '../../lib/database.types';
+
+interface Props {
+  task: PlanTaskRow;
+  /** Second line under the task, e.g. the phase name. */
+  note?: string;
+  /** Strike through and mute finished tasks (Plan view). */
+  strike?: boolean;
+}
+
+const { task, note, strike = false } = Astro.props;
+---
+
+<form method="post" data-enhance class="task-form">
+  <input type="hidden" name="intent" value="toggle-task" />
+  <input type="hidden" name="id" value={task.id} />
+  <input type="hidden" name="done" value={String(!task.done)} />
+  <button type="submit" id={`task-${task.id}`} class="task-toggle" aria-pressed={task.done ? 'true' : 'false'}>
+    <span class="box" aria-hidden="true"></span>
+    <span class="label">
+      <span class:list={{ struck: strike && task.done }}>{task.text}</span>
+      {note && <span class="note">{note}</span>}
+    </span>
+  </button>
+</form>
+
+<style>
+  .task-form {
+    display: flex;
+    flex: 1;
+    min-width: 0;
+  }
+  .label {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+    overflow-wrap: anywhere;
+  }
+  .struck {
+    text-decoration: line-through;
+    color: var(--muted);
+  }
+  .note {
+    font-size: 13px;
+    color: var(--muted);
+  }
+</style>

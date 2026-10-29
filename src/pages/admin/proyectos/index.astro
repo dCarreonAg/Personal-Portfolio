@@ -1,0 +1,78 @@
+---
+import AdminLayout from '../../../layouts/AdminLayout.astro';
+
+const { data: projects, error } = await Astro.locals.supabase
+  .from('projects')
+  .select('id, name, year, featured, published')
+  .order('sort_order')
+  .order('created_at');
+if (error) throw error;
+
+const notices: Record<string, string> = { guardado: 'Proyecto guardado.', borrado: 'Proyecto eliminado.' };
+const notice = notices[Astro.url.searchParams.get('ok') ?? ''] ?? '';
+---
+
+<AdminLayout title="Proyectos" section="proyectos">
+  <div class="head">
+    <h1 class="page-title">Proyectos</h1>
+    <a href="/admin/proyectos/nuevo" class="btn btn-primary">Nuevo proyecto</a>
+  </div>
+  <p class="notice status" role="status">{notice}</p>
+
+  <ul class="list rows">
+    {projects.map((p) => (
+      <li>
+        <a href={`/admin/proyectos/${p.id}`} class="row">
+          <span class="mono year">{p.year}</span>
+          <span class="name">{p.name}</span>
+          <span class="tags">
+            {p.featured && <span class="tag tag-rosa">Destacado</span>}
+            {!p.published && <span class="tag tag-outline">Borrador</span>}
+          </span>
+          <span class="muted edit">Editar <span aria-hidden="true">→</span></span>
+        </a>
+      </li>
+    ))}
+  </ul>
+  {projects.length === 0 && <p class="muted">Todavía no hay proyectos.</p>}
+</AdminLayout>
+
+<style>
+  .head {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    align-items: flex-end;
+    gap: 16px;
+  }
+  .status {
+    min-height: 1.5em;
+    margin: 12px 0 8px;
+  }
+  .rows {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+  }
+  .row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px 16px;
+    padding: 18px 8px;
+    border-bottom: 1px solid var(--line);
+    text-decoration: none;
+  }
+  .row:hover {
+    color: inherit;
+    background: var(--panel-hover);
+  }
+  .year { width: 44px; }
+  .name {
+    flex: 1 1 200px;
+    font-size: 17px;
+    font-weight: 600;
+  }
+  .tags { display: flex; gap: 8px; }
+  .edit { font-size: 14px; }
+</style>

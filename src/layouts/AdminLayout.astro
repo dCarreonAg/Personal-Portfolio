@@ -1,0 +1,175 @@
+---
+import '../styles/global.css';
+import '../styles/admin.css';
+import ThemeScript from '../components/ThemeScript.astro';
+
+export type AdminSection = 'resumen' | 'plan' | 'perfil' | 'proyectos' | 'trayectoria';
+
+interface Props {
+  title: string;
+  /** Highlighted sidebar item; omit for the login page (no sidebar). */
+  section?: AdminSection;
+}
+
+const { title, section } = Astro.props;
+
+const nav: { key: AdminSection; label: string; href: string }[] = [
+  { key: 'resumen', label: 'Resumen', href: '/admin' },
+  { key: 'plan', label: 'Plan', href: '/admin/plan' },
+  { key: 'perfil', label: 'Perfil', href: '/admin/perfil' },
+  { key: 'proyectos', label: 'Proyectos', href: '/admin/proyectos' },
+  { key: 'trayectoria', label: 'Trayectoria', href: '/admin/trayectoria' },
+];
+---
+
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex, nofollow" />
+    <title>{title} · Panel</title>
+    <meta name="color-scheme" content="light dark" />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@800;900&family=IBM+Plex+Mono:wght@400;500&family=Instrument+Sans:wght@400;500;600&display=swap"
+    />
+    <ThemeScript />
+  </head>
+  <body>
+    {section ? (
+      <div class="shell">
+        <aside>
+          <div class="who">
+            <span class="name">Diego Carreón</span>
+            <span class="mono">Panel</span>
+          </div>
+          <nav aria-label="Panel">
+            {nav.map((n) => (
+              <a href={n.href} class:list={['nav-item', { active: n.key === section }]} aria-current={n.key === section ? 'page' : undefined}>
+                {n.label}
+              </a>
+            ))}
+          </nav>
+          <div class="side-foot">
+            <a href="/" target="_blank" rel="noopener">Ver sitio <span aria-hidden="true">↗</span></a>
+            <button type="button" class="link-btn" data-theme-toggle>
+              <span class="to-dark">Modo oscuro</span><span class="to-light">Modo claro</span>
+            </button>
+            <form method="post" action="/admin/logout">
+              <button type="submit" class="link-btn">Cerrar sesión</button>
+            </form>
+          </div>
+        </aside>
+        <main id="main" tabindex="-1">
+          <div class="content"><slot /></div>
+        </main>
+      </div>
+    ) : (
+      <slot />
+    )}
+  </body>
+</html>
+
+<script>
+  import '../scripts/theme-toggle';
+  import '../scripts/enhance';
+</script>
+
+<style>
+  .shell {
+    display: flex;
+    flex-wrap: wrap;
+    min-height: 100vh;
+  }
+  aside {
+    flex: 1 1 220px;
+    max-width: 100%;
+    padding: 28px 20px;
+    border-right: 1px solid var(--line);
+    display: flex;
+    flex-direction: column;
+    gap: 28px;
+  }
+  .who {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding: 0 10px;
+  }
+  .name { font-weight: 600; }
+  .who .mono { font-size: 12px; }
+  nav {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 2px;
+  }
+  .nav-item {
+    flex: 1 1 180px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 10px 10px 26px;
+    border-radius: 6px;
+    color: var(--text-2);
+    font-weight: 500;
+    text-decoration: none;
+  }
+  .nav-item:hover {
+    color: var(--ink);
+    background: var(--panel-hover);
+  }
+  .nav-item.active {
+    padding-left: 10px;
+    background: var(--nav-active);
+    color: var(--ink);
+    font-weight: 600;
+  }
+  .nav-item.active::before {
+    content: '';
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--rosa-fill);
+  }
+  .side-foot {
+    margin-top: auto;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px 16px;
+    padding: 0 10px;
+    font-size: 14px;
+    color: var(--muted);
+  }
+  .side-foot a {
+    text-decoration: underline;
+    text-underline-offset: 3px;
+  }
+  .side-foot form { display: contents; }
+  :global(:root:not([data-theme])) [data-theme-toggle] { display: none; }
+  :global(:root[data-theme='dark']) .to-dark,
+  :global(:root[data-theme='light']) .to-light { display: none; }
+
+  main {
+    flex: 999 1 560px;
+    min-width: 0;
+    padding: clamp(24px, 4vw, 48px) clamp(20px, 4vw, 56px) 80px;
+  }
+  main:focus { outline: none; }
+  .content { max-width: 960px; }
+
+  @media (min-width: 800px) {
+    aside {
+      flex: 0 0 240px;
+      position: sticky;
+      top: 0;
+      height: 100vh;
+    }
+    nav { flex-direction: column; }
+    .nav-item { flex: none; }
+  }
+</style>

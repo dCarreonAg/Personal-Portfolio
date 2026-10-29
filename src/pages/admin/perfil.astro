@@ -1,0 +1,145 @@
+---
+import AdminLayout from '../../layouts/AdminLayout.astro';
+import { SAVE_FAILED, backTo, text } from '../../lib/admin/forms';
+import type { Json } from '../../lib/database.types';
+
+const { supabase } = Astro.locals;
+
+const { data: row, error: loadError } = await supabase.from('profile').select('*').maybeSingle();
+if (loadError) throw loadError;
+
+const asItems = (value: Json | undefined) =>
+  Array.from({ length: 3 }, (_, i) => {
+    const item = Array.isArray(value) ? value[i] : null;
+    const obj = item && typeof item === 'object' && !Array.isArray(item) ? item : {};
+    return {
+      title: typeof obj.title === 'string' ? obj.title : '',
+      detail: typeof obj.detail === 'string' ? obj.detail : '',
+    };
+  });
+
+let values = {
+  name: row?.name ?? '',
+  headline: row?.headline ?? '',
+  bio: row?.bio ?? '',
+  availability: row?.availability ?? '',
+  focus: row?.focus ?? '',
+  email: row?.email ?? '',
+  github: row?.github ?? '',
+  linkedin: row?.linkedin ?? '',
+};
+let now = asItems(row?.right_now);
+let error = '';
+
+if (Astro.request.method === 'POST') {
+  const form = await Astro.request.formData();
+  values = {
+    name: text(form, 'name'),
+    headline: text(form, 'headline'),
+    bio: text(form, 'bio'),
+    availability: text(form, 'availability'),
+    focus: text(form, 'focus'),
+    email: text(form, 'email'),
+    github: text(form, 'github'),
+    linkedin: text(form, 'linkedin'),
+  };
+  now = [0, 1, 2].map((i) => ({ title: text(form, `now${i}-title`), detail: text(form, `now${i}-detail`) }));
+
+  if (!values.name) {
+    error = 'El nombre es obligatorio.';
+  } else {
+    const { error: saveError } = await supabase.from('profile').upsert({
+      id: true,
+      ...values,
+      right_now: now.filter((n) => n.title),
+    });
+    if (!saveError) return Astro.redirect(backTo(Astro.url, '1'), 303);
+    console.error('Profile save failed:', saveError.message);
+    error = SAVE_FAILED;
+  }
+  Astro.response.status = 400;
+}
+
+const saved = Astro.url.searchParams.get('ok') === '1';
+const fields = [
+  { key: 'name', label: 'Nombre' },
+  { key: 'headline', label: 'Titular' },
+] as const;
+---
+
+<AdminLayout title="Perfil" section="perfil">
+  <h1 class="page-title">Perfil</h1>
+  <p class="page-sub">Lo que aparece en la home. El texto público va en inglés.</p>
+
+  <form method="post" class="grid">
+    {fields.map((f) => (
+      <label class="field">{f.label}<input class="input" name={f.key} value={values[f.key]} required={f.key === 'name'} /></label>
+    ))}
+    <label class="field wide">
+      Bio
+      <textarea class="input" name="bio" rows="4" aria-describedby="bio-hint">{values.bio}</textarea>
+      <span class="hint" id="bio-hint">2–3 frases.</span>
+    </label>
+    <label class="field wide">
+      Disponibilidad
+      <input class="input" name="availability" value={values.availability} aria-describedby="availability-hint" />
+      <span class="hint" id="availability-hint">Va en la etiqueta rosa junto al nombre.</span>
+    </label>
+    <label class="field wide">
+      Enfoque
+      <input class="input" name="focus" value={values.focus} aria-describedby="focus-hint" />
+      <span class="hint" id="focus-hint">Línea gris bajo la bio, p. ej. "Frontend or product engineering · Europe or Mexico".</span>
+    </label>
+    <fieldset class="wide now">
+      <legend>Right now</legend>
+      {now.map((n, i) => (
+        <div class="now-item">
+          <input class="input" name={`now${i}-title`} value={n.title} aria-label={`Right now ${i + 1}: título`} placeholder="Título" />
+          <input class="input" name={`now${i}-detail`} value={n.detail} aria-label={`Right now ${i + 1}: descripción`} placeholder="Descripción (una frase)" />
+        </div>
+      ))}
+    </fieldset>
+    <label class="field">Correo<input class="input" type="email" name="email" value={values.email} /></label>
+    <label class="field">GitHub<input class="input" name="github" value={values.github} placeholder="github.com/usuario" /></label>
+    <label class="field">LinkedIn<input class="input" name="linkedin" value={values.linkedin} placeholder="linkedin.com/in/usuario" /></label>
+    <div class="wide actions">
+      <button type="submit" class="btn btn-primary btn-lg">Guardar cambios</button>
+      {error ? <p class="alert" role="alert">{error}</p> : <p class="notice" role="status">{saved ? 'Cambios guardados' : ''}</p>}
+    </div>
+  </form>
+</AdminLayout>
+
+<style>
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr));
+    gap: 20px 24px;
+  }
+  .wide { grid-column: 1 / -1; }
+  .now {
+    margin: 0;
+    padding: 0;
+    border: none;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+  legend {
+    margin-bottom: 6px;
+    padding: 0;
+    font-size: 13px;
+    font-weight: 600;
+  }
+  .now-item {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr));
+    gap: 8px;
+  }
+  .actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 16px;
+    padding-top: 8px;
+  }
+</style>

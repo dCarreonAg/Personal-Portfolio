@@ -1,0 +1,44 @@
+---
+import ThemeToggle from './ThemeToggle.astro';
+
+interface Props {
+  name: string;
+}
+
+const { name } = Astro.props;
+---
+
+<nav class="nav" aria-label="Main">
+  <a href="/" class="home">{name}</a>
+  <div class="links">
+    <a href="/#work">Work</a>
+    <a href="/#path">Path</a>
+    <a href="/#contact">Contact</a>
+    <ThemeToggle />
+  </div>
+</nav>
+
+<style>
+  .nav {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    align-items: center;
+    gap: 16px;
+    padding: 28px 0;
+    font-size: 15px;
+  }
+  .home {
+    font-weight: 600;
+    text-decoration: none;
+  }
+  .links {
+    display: flex;
+    flex-wrap: nowrap;
+    white-space: nowrap;
+    align-items: center;
+    gap: clamp(14px, 3vw, 32px);
+    color: var(--muted);
+  }
+  .links a { text-decoration: none; }
+</style>

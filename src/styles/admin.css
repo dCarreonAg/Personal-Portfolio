@@ -1,0 +1,217 @@
+/* Shared panel styles: restrained version of the site (15px body, 6px radius). */
+
+body { font-size: 15px; }
+
+input, textarea, select, button { font: inherit; color: inherit; }
+
+:focus-visible { outline-offset: 2px; }
+
+.page-title {
+  margin: 0;
+  font-family: var(--font-display);
+  font-weight: 900;
+  font-size: 56px;
+  line-height: .9;
+  text-transform: uppercase;
+  overflow-wrap: anywhere;
+}
+
+.page-sub {
+  margin: 8px 0 32px;
+  color: var(--muted);
+}
+
+.muted { color: var(--muted); }
+.mono { font-family: var(--font-mono); font-size: 13px; color: var(--muted); }
+
+/* Form fields */
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 600;
+}
+.field .hint,
+.field .error {
+  font-weight: 400;
+  font-size: 13px;
+}
+.field .hint { color: var(--muted); }
+.field .error { color: var(--danger); }
+
+.input {
+  width: 100%;
+  min-width: 0;
+  padding: 11px 12px;
+  border: 1px solid var(--input-border);
+  border-radius: 6px;
+  background: var(--input-bg);
+  font-size: 15px;
+  font-weight: 400;
+  line-height: 1.4;
+}
+.input[aria-invalid='true'] { border-color: var(--danger); }
+textarea.input { line-height: 1.5; resize: vertical; }
+textarea.input.code {
+  padding: 14px;
+  font-family: var(--font-mono);
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+/* Buttons */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 11px 16px;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 600;
+  text-decoration: none;
+  cursor: pointer;
+}
+.btn-primary {
+  border: 1px solid var(--ink);
+  background: var(--ink);
+  color: var(--bg);
+}
+.btn-primary:hover { color: var(--bg); opacity: .9; }
+.btn-outline {
+  border: 1px solid var(--ink);
+  background: none;
+  color: inherit;
+}
+.btn-quiet {
+  border: 1px solid var(--input-border);
+  background: none;
+  color: inherit;
+  font-weight: 500;
+}
+.btn-lg { padding: 12px 20px; font-size: 15px; }
+
+.link-btn {
+  background: none;
+  border: none;
+  padding: 4px 0;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.link-btn:hover { color: var(--rosa-text); }
+.link-btn.danger { color: var(--danger); }
+
+/* Status lines */
+.notice {
+  margin: 0;
+  font-size: 14px;
+  color: var(--muted);
+}
+.alert {
+  margin: 0;
+  font-size: 14px;
+  color: var(--danger);
+}
+
+/* Progress bars */
+.bar {
+  height: 4px;
+  background: var(--track);
+}
+.bar > span {
+  display: block;
+  height: 100%;
+  background: var(--ink);
+}
+.bar.rosa > span { background: var(--rosa-fill); }
+
+/* Task toggle: a submit button that looks like a checkbox. */
+.task-toggle {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  flex: 1;
+  min-width: 0;
+  padding: 0;
+  border: none;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.task-toggle .box {
+  flex: 0 0 18px;
+  height: 18px;
+  margin-top: 2px;
+  border: 1.5px solid var(--muted);
+  border-radius: 3px;
+  display: grid;
+  place-items: center;
+}
+.task-toggle[aria-pressed='true'] .box {
+  background: var(--rosa-fill);
+  border-color: var(--rosa-fill);
+}
+.task-toggle[aria-pressed='true'] .box::after {
+  content: '';
+  width: 5px;
+  height: 10px;
+  margin-top: -2px;
+  border: solid var(--on-rosa);
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg);
+}
+
+/* Toggle switch on a native checkbox (role="switch"). */
+.switch {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 15px;
+  font-weight: 500;
+  cursor: pointer;
+}
+.switch input {
+  appearance: none;
+  margin: 0;
+  width: 36px;
+  height: 20px;
+  padding: 2px;
+  border-radius: 999px;
+  background: var(--input-border);
+  cursor: pointer;
+  display: flex;
+}
+.switch input::before {
+  content: '';
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #FFFFFF;
+  transition: transform .15s;
+}
+.switch input:checked::before { transform: translateX(16px); }
+.switch.rosa input:checked { background: var(--rosa-fill); }
+.switch.ink input:checked { background: var(--ink); }
+.switch.ink input:checked::before { background: var(--bg); }
+
+.tag {
+  font-size: 12px;
+  font-weight: 600;
+  padding: 3px 9px;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+.tag-rosa { background: var(--rosa-fill); color: var(--on-rosa); }
+.tag-outline {
+  padding: 2px 8px;
+  border: 1px solid var(--muted);
+  color: var(--text-2);
+}
+
+.list { border-top: 1px solid var(--line); }

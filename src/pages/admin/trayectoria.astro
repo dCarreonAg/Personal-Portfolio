@@ -1,0 +1,162 @@
+---
+import AdminLayout from '../../layouts/AdminLayout.astro';
+import { SAVE_FAILED, nextSortOrder, text } from '../../lib/admin/forms';
+import type { PathKind } from '../../lib/database.types';
+
+const { supabase } = Astro.locals;
+
+const KINDS: { value: PathKind; label: string }[] = [
+  { value: 'education', label: 'Educación' },
+  { value: 'work', label: 'Trabajo' },
+  { value: 'award', label: 'Premio' },
+  { value: 'language', label: 'Idioma' },
+];
+const kindLabel = (k: PathKind) => KINDS.find((x) => x.value === k)?.label ?? k;
+const isKind = (k: string): k is PathKind => KINDS.some((x) => x.value === k);
+
+const { data: entries, error: loadError } = await supabase.from('path_entries').select('*').order('sort_order');
+if (loadError) throw loadError;
+
+const editingId = Astro.url.searchParams.get('editar');
+const editing = entries.find((e) => e.id === editingId) ?? null;
+
+let f = {
+  id: editing?.id ?? '',
+  kind: editing?.kind ?? ('education' as PathKind),
+  title: editing?.title ?? '',
+  place: editing?.place ?? '',
+  years: editing?.years ?? '',
+};
+let error = '';
+
+if (Astro.request.method === 'POST') {
+  const form = await Astro.request.formData();
+  const intent = text(form, 'intent');
+
+  if (intent === 'delete') {
+    const { error: e } = await supabase.from('path_entries').delete().eq('id', text(form, 'id'));
+    if (!e) return Astro.redirect(Astro.url.pathname, 303);
+    console.error('Path delete failed:', e.message);
+    error = SAVE_FAILED;
+  } else {
+    const kind = text(form, 'kind');
+    f = { id: text(form, 'id'), kind: isKind(kind) ? kind : 'education', title: text(form, 'title'), place: text(form, 'place'), years: text(form, 'years') };
+    if (!f.title) {
+      error = 'Escribe el título.';
+    } else {
+      const row = { kind: f.kind, title: f.title, place: f.place, years: f.years };
+      const { error: e } = f.id
+        ? await supabase.from('path_entries').update(row).eq('id', f.id)
+        : await supabase.from('path_entries').insert({ ...row, sort_order: nextSortOrder(entries) });
+      if (!e) return Astro.redirect(Astro.url.pathname, 303);
+      console.error('Path save failed:', e.message);
+      error = SAVE_FAILED;
+    }
+  }
+  Astro.response.status = 400;
+}
+
+const isEditing = Boolean(f.id);
+---
+
+<AdminLayout title="Trayectoria" section="trayectoria">
+  <h1 class="page-title title">Trayectoria</h1>
+  <div class="layout">
+    <ol class="list entries">
+      {entries.map((e) => (
+        <li>
+          <span class="years">{e.years}</span>
+          <span class="what"><span class="t">{e.title}</span><span class="muted p">{e.place} · {kindLabel(e.kind)}</span></span>
+          <span class="acts">
+            <a href={`?editar=${e.id}#entry-form`} class="link-btn">Editar<span class="visually-hidden"> {e.title}</span></a>
+            <form method="post">
+              <input type="hidden" name="intent" value="delete" />
+              <input type="hidden" name="id" value={e.id} />
+              <button type="submit" class="link-btn muted-btn" data-confirm={`¿Borrar "${e.title}"?`}>Borrar<span class="visually-hidden"> {e.title}</span></button>
+            </form>
+          </span>
+        </li>
+      ))}
+    </ol>
+
+    <form method="post" class="card" id="entry-form">
+      <h2>{isEditing ? 'Editar entrada' : 'Agregar entrada'}</h2>
+      <input type="hidden" name="intent" value="save" />
+      <input type="hidden" name="id" value={f.id} />
+      <label class="field">
+        Tipo
+        <select class="input" name="kind">
+          {KINDS.map((k) => <option value={k.value} selected={k.value === f.kind}>{k.label}</option>)}
+        </select>
+      </label>
+      <label class="field">Título<input class="input" name="title" value={f.title} required aria-invalid={error && !f.title ? 'true' : undefined} /></label>
+      <label class="field">Lugar<input class="input" name="place" value={f.place} /></label>
+      <label class="field">Años<input class="input" name="years" value={f.years} placeholder="2024 o 2023–2027" /></label>
+      {error && <p class="alert" role="alert">{error}</p>}
+      <div class="btns">
+        <button type="submit" class="btn btn-primary">{isEditing ? 'Guardar cambios' : 'Agregar'}</button>
+        {isEditing && <a href={Astro.url.pathname} class="btn btn-quiet">Cancelar</a>}
+      </div>
+    </form>
+  </div>
+</AdminLayout>
+
+<style>
+  .title { margin-bottom: 32px; }
+  .layout {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 40px;
+    align-items: flex-start;
+  }
+  .entries {
+    flex: 2 1 400px;
+    list-style: none;
+    margin: 0;
+    padding: 0;
+  }
+  .entries li {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 4px 16px;
+    padding: 14px 0;
+    border-bottom: 1px solid var(--line);
+  }
+  .years {
+    flex: 0 0 108px;
+    font-family: var(--font-display);
+    font-weight: 800;
+    font-size: 24px;
+  }
+  .what {
+    flex: 1 1 200px;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+  .t { font-weight: 600; }
+  .p { font-size: 14px; }
+  .acts {
+    display: flex;
+    gap: 12px;
+    font-size: 14px;
+  }
+  .muted-btn { color: var(--muted); }
+  .card {
+    flex: 1 1 260px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    padding: 20px;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+  }
+  h2 {
+    margin: 0;
+    font-size: 17px;
+    font-weight: 600;
+  }
+  .card .input { padding: 10px 12px; }
+  .btns { display: flex; gap: 10px; }
+</style>

@@ -1,0 +1,103 @@
+---
+import AdminLayout from '../../layouts/AdminLayout.astro';
+import TaskToggle from '../../components/admin/TaskToggle.astro';
+import { handlePlanAction, loadPlan } from '../../lib/admin/plan';
+
+const { supabase } = Astro.locals;
+let error: string | null = null;
+
+if (Astro.request.method === 'POST') {
+  error = await handlePlanAction(supabase, await Astro.request.formData());
+  if (!error) return Astro.redirect(Astro.url.pathname, 303);
+  Astro.response.status = 400;
+}
+
+const plan = await loadPlan(supabase);
+const next = plan.phases.flatMap((p) => p.tasks.filter((t) => !t.done).map((task) => ({ task, phase: p.name }))).slice(0, 5);
+---
+
+<AdminLayout title="Resumen" section="resumen">
+  <h1 class="page-title">Resumen</h1>
+  <p class="page-sub sub">Plan de búsqueda de internship · {plan.done} de {plan.total} tareas</p>
+  {error && <p class="alert" role="alert">{error}</p>}
+
+  <div class="big">
+    <span class="pct">{plan.pct}%</span>
+    <div class="bar rosa thick" role="progressbar" aria-label="Avance del plan" aria-valuenow={plan.pct} aria-valuemin="0" aria-valuemax="100">
+      <span style={`width:${plan.pct}%`}></span>
+    </div>
+  </div>
+
+  <div class="cols">
+    <section aria-labelledby="next-title">
+      <h2 id="next-title">Próximas tareas</h2>
+      <ul class="list rows">
+        {next.map(({ task, phase }) => (
+          <li><TaskToggle task={task} note={phase} /></li>
+        ))}
+      </ul>
+      {next.length === 0 && <p class="muted empty">No hay tareas pendientes.</p>}
+    </section>
+    <section aria-labelledby="phases-title">
+      <h2 id="phases-title">Avance por fase</h2>
+      <ul class="list rows">
+        {plan.phases.map((p) => (
+          <li class="phase">
+            <div class="phase-head"><span>{p.name}</span><span class="mono">{p.done}/{p.total}</span></div>
+            <div class="bar" aria-hidden="true"><span style={`width:${p.pct}%`}></span></div>
+          </li>
+        ))}
+      </ul>
+      {plan.phases.length === 0 && <p class="muted empty">Todavía no hay fases. Créalas en <a href="/admin/plan">Plan</a>.</p>}
+    </section>
+  </div>
+</AdminLayout>
+
+<style>
+  .sub { margin-bottom: 0; }
+  .big {
+    margin-top: 36px;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+  .pct {
+    font-family: var(--font-display);
+    font-weight: 900;
+    font-size: clamp(96px, 14vw, 160px);
+    line-height: .8;
+  }
+  .thick { height: 8px; }
+  .thick > span { transition: width .4s; }
+  .cols {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr));
+    gap: 48px;
+    margin-top: 56px;
+  }
+  h2 {
+    margin: 0 0 12px;
+    font-size: 17px;
+    font-weight: 600;
+  }
+  .rows {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+  }
+  .rows > li {
+    padding: 12px 0;
+    border-bottom: 1px solid var(--line);
+  }
+  .phase {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .phase-head {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+  }
+  .empty { margin: 12px 0; }
+</style>

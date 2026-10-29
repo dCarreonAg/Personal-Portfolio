@@ -1,0 +1,163 @@
+---
+import AdminLayout from '../../layouts/AdminLayout.astro';
+import TaskToggle from '../../components/admin/TaskToggle.astro';
+import { handlePlanAction, loadPlan } from '../../lib/admin/plan';
+
+const { supabase } = Astro.locals;
+let error: string | null = null;
+
+if (Astro.request.method === 'POST') {
+  error = await handlePlanAction(supabase, await Astro.request.formData());
+  if (!error) return Astro.redirect(Astro.url.pathname, 303);
+  Astro.response.status = 400;
+}
+
+const plan = await loadPlan(supabase);
+---
+
+<AdminLayout title="Plan" section="plan">
+  <h1 class="page-title">Plan</h1>
+  <p class="page-sub">{plan.done} de {plan.total} tareas · {plan.pct}%</p>
+  {error && <p class="alert top-alert" role="alert">{error}</p>}
+
+  <div class="list">
+    {plan.phases.map((p) => (
+      <section class="phase" aria-labelledby={`phase-${p.id}`}>
+        <div class="phase-head">
+          <form method="post" data-enhance class="phase-toggle">
+            <input type="hidden" name="intent" value="toggle-phase" />
+            <input type="hidden" name="id" value={p.id} />
+            <input type="hidden" name="open" value={String(!p.open)} />
+            <button type="submit" id={`phase-${p.id}`} aria-expanded={p.open ? 'true' : 'false'}>
+              <span class="chevron" aria-hidden="true">{p.open ? '▾' : '▸'}</span>{p.name}
+            </button>
+          </form>
+          <div class="phase-meta">
+            <div class="bar rosa mini" aria-hidden="true"><span style={`width:${p.pct}%`}></span></div>
+            <span class="mono count">{p.done}/{p.total}</span>
+            <form method="post" data-enhance>
+              <input type="hidden" name="intent" value="delete-phase" />
+              <input type="hidden" name="id" value={p.id} />
+              <button type="submit" class="link-btn muted small" data-confirm={`¿Borrar la fase "${p.name}" y sus tareas?`}>
+                Borrar fase<span class="visually-hidden"> {p.name}</span>
+              </button>
+            </form>
+          </div>
+        </div>
+        {p.open && (
+          <div class="tasks">
+            <ul>
+              {p.tasks.map((t) => (
+                <li>
+                  <TaskToggle task={t} strike />
+                  <form method="post" data-enhance>
+                    <input type="hidden" name="intent" value="delete-task" />
+                    <input type="hidden" name="id" value={t.id} />
+                    <button type="submit" class="remove" aria-label={`Borrar tarea: ${t.text}`}>×</button>
+                  </form>
+                </li>
+              ))}
+            </ul>
+            <form method="post" data-enhance class="add">
+              <input type="hidden" name="intent" value="add-task" />
+              <input type="hidden" name="id" value={p.id} />
+              <input class="input" name="text" id={`new-task-${p.id}`} placeholder="Nueva tarea" aria-label={`Nueva tarea en ${p.name}`} required />
+              <button type="submit" class="btn btn-outline">Agregar</button>
+            </form>
+          </div>
+        )}
+      </section>
+    ))}
+  </div>
+  {plan.phases.length === 0 && <p class="muted">Todavía no hay fases.</p>}
+
+  <form method="post" data-enhance class="new-phase">
+    <input type="hidden" name="intent" value="add-phase" />
+    <label for="new-phase" class="field">Nueva fase</label>
+    <div class="row">
+      <input class="input" id="new-phase" name="name" placeholder="Semana 5 (17–23 nov): entrevistas" required />
+      <button type="submit" class="btn btn-primary">Crear fase</button>
+    </div>
+  </form>
+</AdminLayout>
+
+<style>
+  .top-alert { margin-bottom: 16px; }
+  .phase { border-bottom: 1px solid var(--line); }
+  .phase-head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px 16px;
+    padding: 14px 0;
+  }
+  .phase-toggle { flex: 1 1 260px; display: flex; }
+  .phase-toggle button {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 4px 0;
+    border: none;
+    background: none;
+    font-size: 17px;
+    font-weight: 600;
+    text-align: left;
+    cursor: pointer;
+  }
+  .chevron {
+    width: 14px;
+    font-size: 13px;
+    color: var(--muted);
+  }
+  .phase-meta {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .mini { width: 80px; }
+  .count { width: 40px; }
+  .small { font-size: 13px; padding: 4px; color: var(--muted); }
+  .tasks {
+    padding: 0 0 18px 26px;
+    display: flex;
+    flex-direction: column;
+  }
+  .tasks ul {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+  }
+  .tasks li {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 8px 0;
+    border-top: 1px solid var(--line-soft);
+  }
+  .remove {
+    padding: 4px 8px;
+    border: none;
+    background: none;
+    color: var(--muted);
+    font-size: 18px;
+    line-height: 1;
+    cursor: pointer;
+  }
+  .remove:hover { color: var(--danger); }
+  .add {
+    display: flex;
+    gap: 8px;
+    padding-top: 10px;
+  }
+  .add .input { padding: 9px 12px; }
+  .add .btn { padding: 9px 14px; }
+  .new-phase {
+    margin-top: 32px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    max-width: 560px;
+  }
+  .row { display: flex; gap: 8px; }
+</style>

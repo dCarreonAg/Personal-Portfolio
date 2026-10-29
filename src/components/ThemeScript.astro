@@ -1,0 +1,15 @@
+<script is:inline>
+  // Resolve the theme before first paint: saved choice, else the OS setting.
+  (() => {
+    const root = document.documentElement;
+    const mq = matchMedia('(prefers-color-scheme: dark)');
+    const saved = () => {
+      try { return localStorage.getItem('theme'); } catch { return null; }
+    };
+    const s = saved();
+    root.dataset.theme = s === 'light' || s === 'dark' ? s : mq.matches ? 'dark' : 'light';
+    mq.addEventListener('change', (e) => {
+      if (!saved()) root.dataset.theme = e.matches ? 'dark' : 'light';
+    });
+  })();
+</script>

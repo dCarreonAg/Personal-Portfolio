@@ -1,0 +1,335 @@
+---
+import AdminLayout from '../../../layouts/AdminLayout.astro';
+import { SAVE_FAILED, SLUG_RE, checked, nextSortOrder, optionalUrl, slugify, text } from '../../../lib/admin/forms';
+import { ACCEPT, checkImage, pickedFile, removeImage, uploadImage } from '../../../lib/admin/images';
+import type { ProjectRow } from '../../../lib/database.types';
+
+const { supabase } = Astro.locals;
+const param = Astro.params.id ?? '';
+const isNew = param === 'nuevo';
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+let existing: ProjectRow | null = null;
+if (!isNew) {
+  if (!UUID_RE.test(param)) return Astro.redirect('/admin/proyectos', 303);
+  const { data, error } = await supabase.from('projects').select('*').eq('id', param).maybeSingle();
+  if (error) throw error;
+  if (!data) return Astro.redirect('/admin/proyectos', 303);
+  existing = data;
+}
+
+const blankMd = '## Problem\n\n## Process\n\n## Result\n';
+let v = {
+  name: existing?.name ?? '',
+  slug: existing?.slug ?? '',
+  summary: existing?.summary ?? '',
+  role: existing?.role ?? '',
+  year: existing?.year ?? String(new Date().getFullYear()),
+  tools: existing?.tools.join(', ') ?? '',
+  tagline: existing?.tagline ?? '',
+  award: existing?.award ?? '',
+  demo: existing?.demo_url ?? '',
+  repo: existing?.repo_url ?? '',
+  md: existing?.case_study_md ?? blankMd,
+  featured: existing?.featured ?? false,
+  published: existing?.published ?? false,
+};
+const errors: Partial<Record<'name' | 'slug' | 'demo' | 'repo' | 'image' | 'form', string>> = {};
+
+if (Astro.request.method === 'POST') {
+  const form = await Astro.request.formData();
+
+  if (text(form, 'intent') === 'delete' && existing) {
+    const { error } = await supabase.from('projects').delete().eq('id', existing.id);
+    if (!error) {
+      await removeImage(supabase, existing.image_url);
+      return Astro.redirect('/admin/proyectos?ok=borrado', 303);
+    }
+    console.error('Project delete failed:', error.message);
+    errors.form = 'No se pudo eliminar. Intenta de nuevo.';
+  } else {
+    v = {
+      name: text(form, 'name'),
+      slug: text(form, 'slug'),
+      summary: text(form, 'summary'),
+      role: text(form, 'role'),
+      year: text(form, 'year'),
+      tools: text(form, 'tools'),
+      tagline: text(form, 'tagline'),
+      award: text(form, 'award'),
+      demo: text(form, 'demo'),
+      repo: text(form, 'repo'),
+      md: typeof form.get('md') === 'string' ? (form.get('md') as string).replace(/\r\n?/g, '\n') : '',
+      featured: checked(form, 'featured'),
+      published: checked(form, 'published'),
+    };
+    const slug = slugify(v.slug || v.name);
+    const demoUrl = optionalUrl(v.demo);
+    const repoUrl = optionalUrl(v.repo);
+    const file = pickedFile(form.get('image'));
+
+    if (!v.name) errors.name = 'Escribe el nombre del proyecto.';
+    if ((v.name || v.slug) && !SLUG_RE.test(slug)) errors.slug = 'Usa letras, números y guiones.';
+    if (demoUrl === undefined) errors.demo = 'Debe ser un enlace que empiece con https://';
+    if (repoUrl === undefined) errors.repo = 'Debe ser un enlace que empiece con https://';
+    if (file) errors.image = checkImage(file) ?? undefined;
+
+    if (Object.values(errors).every((e) => !e)) {
+      const id = existing?.id ?? crypto.randomUUID();
+      const oldImage = existing?.image_url ?? null;
+      let imageUrl = checked(form, 'remove-image') ? null : oldImage;
+      let uploaded: string | null = null;
+
+      try {
+        if (file) imageUrl = uploaded = await uploadImage(supabase, id, file);
+      } catch (e) {
+        console.error('Image upload failed:', e);
+        errors.image = 'No se pudo subir la imagen. Intenta de nuevo.';
+      }
+
+      if (!errors.image) {
+        const row = {
+          name: v.name,
+          slug,
+          summary: v.summary,
+          role: v.role,
+          year: v.year,
+          tools: v.tools.split(',').map((t) => t.trim()).filter(Boolean),
+          tagline: v.tagline || null,
+          award: v.award || null,
+          demo_url: demoUrl ?? null,
+          repo_url: repoUrl ?? null,
+          image_url: imageUrl,
+          case_study_md: v.md,
+          featured: v.featured,
+          published: v.published,
+        };
+        let error: { code: string; message: string } | null = null;
+        if (existing) {
+          ({ error } = await supabase.from('projects').update(row).eq('id', existing.id));
+        } else {
+          const { data: orders } = await supabase.from('projects').select('sort_order');
+          ({ error } = await supabase.from('projects').insert({ ...row, id, sort_order: nextSortOrder(orders ?? []) }));
+        }
+
+        if (!error) {
+          if (oldImage && oldImage !== imageUrl) await removeImage(supabase, oldImage);
+          return Astro.redirect('/admin/proyectos?ok=guardado', 303);
+        }
+        if (uploaded) await removeImage(supabase, uploaded);
+        if (error.code === '23505') {
+          errors.slug = 'Ya hay un proyecto con esa URL.';
+        } else {
+          console.error('Project save failed:', error.message);
+          errors.form = SAVE_FAILED;
+        }
+      }
+    }
+    v.slug = v.slug || slug;
+  }
+  Astro.response.status = 400;
+}
+
+const title = v.name || (isNew ? 'Nuevo proyecto' : 'Proyecto');
+const invalid = (key: keyof typeof errors): { 'aria-invalid'?: 'true'; 'aria-describedby'?: string } =>
+  errors[key] ? { 'aria-invalid': 'true', 'aria-describedby': `${key}-error` } : {};
+const hasErrors = Object.values(errors).some(Boolean);
+---
+
+<AdminLayout title={title} section="proyectos">
+  <a href="/admin/proyectos" class="back">← Proyectos</a>
+  <h1 class="page-title title">{title}</h1>
+  {hasErrors && <p class="alert top-alert" role="alert">{errors.form ?? 'Revisa los campos marcados.'}</p>}
+
+  <form method="post" enctype="multipart/form-data" class="grid">
+    <input type="hidden" name="intent" value="save" />
+    <label class="field">
+      Nombre
+      <input class="input" name="name" value={v.name} required {...invalid('name')} />
+      {errors.name && <span class="error" id="name-error">{errors.name}</span>}
+    </label>
+    <label class="field">
+      URL
+      <span class="prefixed" data-invalid={errors.slug ? 'true' : undefined}>
+        <span class="prefix" aria-hidden="true">/work/</span>
+        <input name="slug" value={v.slug} placeholder="se-genera-del-nombre" aria-describedby={errors.slug ? 'slug-error' : 'slug-hint'} aria-invalid={errors.slug ? 'true' : undefined} />
+      </span>
+      {errors.slug ? <span class="error" id="slug-error">{errors.slug}</span> : <span class="hint" id="slug-hint">Vacío = se genera del nombre.</span>}
+    </label>
+    <label class="field wide">Resumen<textarea class="input" name="summary" rows="2">{v.summary}</textarea></label>
+    <label class="field">Rol<input class="input" name="role" value={v.role} /></label>
+    <label class="field">Año<input class="input" name="year" value={v.year} inputmode="numeric" /></label>
+    <label class="field wide">Herramientas<input class="input" name="tools" value={v.tools} placeholder="Separadas por comas" /></label>
+    <label class="field">
+      Línea de portada
+      <input class="input" name="tagline" value={v.tagline} aria-describedby="tagline-hint" />
+      <span class="hint" id="tagline-hint">Opcional. Arriba a la izquierda de la portada; si está vacía se usan las herramientas.</span>
+    </label>
+    <label class="field">
+      Premio
+      <input class="input" name="award" value={v.award} aria-describedby="award-hint" />
+      <span class="hint" id="award-hint">Opcional. Aparece en rosa en la lista de proyectos.</span>
+    </label>
+    <label class="field">
+      Link a demo
+      <input class="input" type="url" name="demo" value={v.demo} placeholder="https://" {...invalid('demo')} />
+      {errors.demo && <span class="error" id="demo-error">{errors.demo}</span>}
+    </label>
+    <label class="field">
+      Link a repo
+      <input class="input" type="url" name="repo" value={v.repo} placeholder="https://github.com/" {...invalid('repo')} />
+      {errors.repo && <span class="error" id="repo-error">{errors.repo}</span>}
+    </label>
+
+    <div class="field wide">
+      <label for="image">Imagen principal</label>
+      {existing?.image_url && (
+        <div class="current">
+          <img src={existing.image_url} alt="Imagen actual" width="560" height="315" />
+          <label class="check"><input type="checkbox" name="remove-image" /> Quitar imagen</label>
+        </div>
+      )}
+      <input id="image" type="file" name="image" accept={ACCEPT} class="file" aria-describedby={errors.image ? 'image-error' : 'image-hint'} aria-invalid={errors.image ? 'true' : undefined} />
+      {errors.image ? (
+        <span class="error" id="image-error">{errors.image}</span>
+      ) : (
+        <span class="hint" id="image-hint">Captura 16:9, máx. 4 MB (WebP o JPEG). Sin imagen se usa la portada tipográfica.</span>
+      )}
+    </div>
+
+    <label class="field wide">
+      Case study (Markdown)
+      <textarea class="input code" name="md" rows="14" aria-describedby="md-hint">{v.md}</textarea>
+      <span class="hint" id="md-hint">Usa ## para cada sección: Problem, Process, Result. Las secciones vacías no se muestran.</span>
+    </label>
+
+    <div class="wide switches">
+      <label class="switch rosa"><input type="checkbox" role="switch" name="featured" checked={v.featured} /> Destacado</label>
+      <label class="switch ink"><input type="checkbox" role="switch" name="published" checked={v.published} /> Publicado</label>
+    </div>
+    <p class="wide hint-line muted">Solo un proyecto puede estar destacado: al guardar este como destacado, los demás dejan de estarlo.</p>
+
+    <div class="wide actions">
+      <button type="submit" class="btn btn-primary btn-lg">Guardar</button>
+      <a href="/admin/proyectos" class="btn btn-quiet btn-lg">Cancelar</a>
+      {existing?.published && (
+        <a href={`/work/${existing.slug}`} target="_blank" rel="noopener" class="view">Ver en el sitio <span aria-hidden="true">↗</span></a>
+      )}
+      {existing && (
+        <button type="submit" form="delete-form" class="link-btn danger delete" data-confirm="¿Eliminar este proyecto? No se puede deshacer.">
+          Eliminar proyecto
+        </button>
+      )}
+    </div>
+  </form>
+  {existing && (
+    <form method="post" id="delete-form">
+      <input type="hidden" name="intent" value="delete" />
+    </form>
+  )}
+</AdminLayout>
+
+<style>
+  .back {
+    color: var(--muted);
+    font-size: 14px;
+    font-weight: 500;
+    text-decoration: none;
+  }
+  .title { margin: 16px 0 32px; }
+  .top-alert { margin: -16px 0 24px; }
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr));
+    gap: 20px 24px;
+  }
+  .wide { grid-column: 1 / -1; }
+  .prefixed {
+    display: flex;
+    align-items: center;
+    border: 1px solid var(--input-border);
+    border-radius: 6px;
+    background: var(--input-bg);
+    font-weight: 400;
+  }
+  .prefixed[data-invalid] { border-color: var(--danger); }
+  .prefixed:focus-within {
+    outline: 2px solid var(--rosa-text);
+    outline-offset: 2px;
+  }
+  .prefix {
+    padding: 11px 0 11px 12px;
+    font-family: var(--font-mono);
+    font-size: 13px;
+    color: var(--muted);
+  }
+  .prefixed input {
+    flex: 1;
+    min-width: 0;
+    padding: 11px 12px 11px 2px;
+    border: none;
+    background: none;
+    font-family: var(--font-mono);
+    font-size: 13px;
+  }
+  .prefixed input:focus-visible { outline: none; }
+  .current {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    max-width: 560px;
+  }
+  .current img {
+    width: 100%;
+    height: auto;
+    aspect-ratio: 16 / 9;
+    object-fit: cover;
+    border-radius: 6px;
+  }
+  .check {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-weight: 400;
+    font-size: 14px;
+  }
+  .check input { accent-color: var(--rosa-fill); width: 16px; height: 16px; margin: 0; }
+  .file {
+    font-size: 14px;
+    font-weight: 400;
+  }
+  .file::file-selector-button {
+    margin-right: 12px;
+    padding: 8px 12px;
+    border: 1px solid var(--input-border);
+    border-radius: 6px;
+    background: var(--input-bg);
+    color: var(--ink);
+    font: 500 14px var(--font-body);
+    cursor: pointer;
+  }
+  .switches {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px 32px;
+  }
+  .hint-line {
+    margin: -8px 0 0;
+    font-size: 13px;
+  }
+  .actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 12px;
+    padding-top: 12px;
+    border-top: 1px solid var(--line);
+  }
+  .view { font-size: 15px; font-weight: 500; }
+  .delete {
+    margin-left: auto;
+    padding: 12px 4px;
+    font-size: 15px;
+    font-weight: 500;
+  }
+</style>

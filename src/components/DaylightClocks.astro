@@ -1,0 +1,122 @@
+---
+/*
+ * Two-city clock with a 24 h daylight bar per city.
+ * Rendered with placeholders and filled in on the client (every 10 s), so the
+ * static HTML never shows a stale build-time time. The same script also
+ * updates any [data-local-time] element on the page (e.g. the footer).
+ */
+const CITIES = [
+  { name: 'Uppsala, SE', lat: 59.8586, lon: 17.6389, tz: 'Europe/Stockholm' },
+  { name: 'Mexico City, MX', lat: 19.4326, lon: -99.1332, tz: 'America/Mexico_City' },
+];
+---
+
+<div class="clocks" role="group" aria-label="Local time and daylight in Uppsala and Mexico City">
+  {CITIES.map((c) => (
+    <div class="city" data-city data-lat={c.lat} data-lon={c.lon} data-tz={c.tz}>
+      <div>
+        <div class="mono-meta">{c.name}</div>
+        <div class="time" data-f="time">--:--</div>
+      </div>
+      <div class="detail">
+        <div class="bar" aria-hidden="true">
+          <div class="day" data-f="day"></div>
+          <div class="now" data-f="now" hidden></div>
+        </div>
+        <div class="meta mono-meta">
+          <span class="span">
+            <span class="nowrap"><span data-f="rise">--:--</span>–<span data-f="set">--:--</span></span>
+            <span class="nowrap">· <span data-f="length">-- h -- min</span> of light</span>
+          </span>
+          <span class="nowrap status" data-f="status"></span>
+        </div>
+      </div>
+    </div>
+  ))}
+</div>
+
+<style>
+  .clocks {
+    display: flex;
+    flex-direction: column;
+    gap: 26px;
+  }
+  .city {
+    display: grid;
+    grid-template-columns: clamp(104px, 12vw, 150px) minmax(0, 1fr);
+    gap: clamp(14px, 2vw, 24px);
+    align-items: end;
+  }
+  .time {
+    font-family: var(--font-display);
+    font-weight: 800;
+    font-size: clamp(44px, 5vw, 64px);
+    line-height: .9;
+    font-variant-numeric: tabular-nums;
+  }
+  .detail {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .bar {
+    position: relative;
+    height: 10px;
+    background: var(--night);
+  }
+  .day {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    width: 0;
+    background: var(--day);
+  }
+  .now {
+    position: absolute;
+    top: -7px;
+    bottom: -7px;
+    width: 2px;
+    background: var(--rosa-text);
+  }
+  .meta {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    gap: 4px 12px;
+  }
+  .span {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0 .5em;
+  }
+  .nowrap { white-space: nowrap; }
+  .status { color: var(--ink); }
+</style>
+
+<script>
+  import { daylight, formatHM } from '../lib/sun';
+
+  function tick() {
+    const now = Date.now();
+    for (const el of document.querySelectorAll<HTMLElement>('[data-city]')) {
+      const d = daylight(Number(el.dataset.lat), Number(el.dataset.lon), el.dataset.tz!, now);
+      const f = (name: string) => el.querySelector<HTMLElement>(`[data-f="${name}"]`)!;
+      f('time').textContent = d.time;
+      f('rise').textContent = d.rise;
+      f('set').textContent = d.set;
+      f('length').textContent = d.length;
+      f('status').textContent = d.status;
+      f('day').style.left = `${d.left.toFixed(2)}%`;
+      f('day').style.width = `${d.width.toFixed(2)}%`;
+      f('now').style.left = `${d.now.toFixed(2)}%`;
+      f('now').hidden = false;
+    }
+    for (const el of document.querySelectorAll<HTMLElement>('[data-local-time]')) {
+      el.textContent = formatHM(now, el.dataset.localTime!);
+    }
+  }
+
+  tick();
+  setInterval(tick, 10_000);
+</script>

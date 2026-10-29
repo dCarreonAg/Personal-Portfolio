@@ -1,0 +1,39 @@
+---
+// Label shows the mode you switch *to*, as in the design ("Light" while dark).
+---
+
+<button type="button" class="toggle" data-theme-toggle>
+  <span class="dot" aria-hidden="true"></span>
+  <span class="visually-hidden">Switch to </span>
+  <span class="to-light">Light</span><span class="to-dark">Dark</span>
+  <span class="visually-hidden"> mode</span>
+</button>
+
+<style>
+  .toggle {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: none;
+    border: 1px solid var(--line);
+    color: var(--ink);
+    font: 500 13px var(--font-body);
+    padding: 7px 12px;
+    border-radius: 999px;
+    cursor: pointer;
+  }
+  .dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: var(--ink);
+  }
+  /* Without JS the theme can't be switched, so hide the control. */
+  :global(:root:not([data-theme])) .toggle { display: none; }
+  :global(:root[data-theme='dark']) .to-dark,
+  :global(:root[data-theme='light']) .to-light { display: none; }
+</style>
+
+<script>
+  import '../scripts/theme-toggle';
+</script>
